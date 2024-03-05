@@ -2,6 +2,7 @@ const http = require('http');
 const envConfig = require('./config/env');
 const Routes = require('./routes/routes');
 
+
 const app = http.createServer((req, res) => {
   // Route requests to user routes
   if (req.url === '/create-user' && req.method === 'POST') {
@@ -13,6 +14,7 @@ const app = http.createServer((req, res) => {
     res.end(JSON.stringify({ error: 'Not Found' }));
   }
 });
+
 
 // Get port from environment variables
 const env = process.env.NODE_ENV || 'development';
