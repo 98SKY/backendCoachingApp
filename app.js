@@ -17,14 +17,16 @@ const app = http.createServer((req, res) => {
   }
 
   // Route requests to user routes
-  if (req.url === '/create-user' && req.method === 'POST') {
-      Routes.registerInstitute(req, res);
-  } else if (req.url.startsWith('/get-user/') && req.method === 'GET') {
-      Routes.getUserById(req, res);
-  } else {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Not Found' }));
-  }
+  if (req.url === '/register-institute' && req.method === 'POST') {
+    Routes.registerInstitute(req, res);
+} else if (req.url === '/login' && req.method === 'POST') {
+    Routes.login(req, res);
+} else if (req.url.startsWith('/get-user/') && req.method === 'GET') {
+    Routes.getUserById(req, res);
+} else {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Entry Point Not Found' }));
+}
 });
 
 

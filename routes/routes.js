@@ -97,4 +97,71 @@ exports.registerInstitute = async (req, res) => {
         console.error('Error sending password and username via email:', error);
     }
   };
+
+  
+  exports.login = async (req, res) => {
+    let data = '';
+
+    req.on('data', chunk => {
+        data += chunk;
+    });
+
+    req.on('end', async () => {
+        try {
+            const { userType, username, userId, password } = JSON.parse(data);
+
+            if (userType === 'institute') {
+                const instituteQuery = 'SELECT * FROM institutes WHERE username = $1';
+                const instituteResult = await db.query(instituteQuery, [username]);
+                console.log('qwqwqwqwwqwqwqwqwqwqwqwqwqwqw',instituteResult);
+                if (instituteResult.rows.length === 0) {
+                    return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Institute ID does not exist' }));
+                }
+
+                const hashedPassword = instituteResult.rows[0].password;
+                const passwordMatch = await bcrypt.compare(password, hashedPassword);
+                if (!passwordMatch) {
+                    return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Password is wrong' }));
+                }
+
+                return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Login successful' }));
+            } else if (userType === 'student') {
+                const instituteQuery = 'SELECT * FROM users WHERE username = $1';
+                const instituteResult = await db.query(instituteQuery, [username]);
+                if (instituteResult.rows.length === 0) {
+                    return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Institute ID does not exist' }));
+                }
+
+                const instituteStatus = instituteResult.rows[0].status;
+                if (instituteStatus !== 'Active') {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Institute is not active' }));
+                }
+
+                const user = instituteResult.rows[0].users.find(user => user.id === userId);
+                if (!user) {
+                    return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'User ID does not exist' }));
+                }
+
+                const userStatus = user.status;
+                if (userStatus !== 'Active') {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'User is not active' }));
+                }
+
+                const userHashedPassword = user.password;
+                const userPasswordMatch = await bcrypt.compare(password, userHashedPassword);
+                if (!userPasswordMatch) {
+                    return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Password is wrong' }));
+                }
+
+                return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Login successful' }));
+            } else {
+                return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid login type' }));
+            }
+        } catch (error) {
+            console.error('Error parsing request body:', error);
+            return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid JSON payload' }));
+        }
+    });
+};
+
   
