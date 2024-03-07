@@ -2,6 +2,7 @@ const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const http = require('http');
 const { transporter } = require('../services/service');
+const { v4: uuidv4 } = require('uuid');
 
 const generatePassword = (username, mobileNumber) => {
     const lastFourDigits = mobileNumber.slice(-4);
@@ -10,7 +11,7 @@ const generatePassword = (username, mobileNumber) => {
 
 
 
-exports.createUser = async (req, res) => {
+exports.registerInstitute = async (req, res) => {
     let data = '';
   
     req.on('data', chunk => {
@@ -25,21 +26,21 @@ exports.createUser = async (req, res) => {
             const username = generateUsername(instituteName);
   
             
-            const usernameQuery = 'SELECT * FROM users WHERE username = $1';
+            const usernameQuery = 'SELECT * FROM institutes WHERE username = $1';
             const usernameResult = await db.query(usernameQuery, [username]);
             if (usernameResult.rows.length > 0) {
                 return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Username already exists' }));
             }
   
             
-            const emailQuery = 'SELECT * FROM users WHERE email = $1';
+            const emailQuery = 'SELECT * FROM institutes WHERE email = $1';
             const emailResult = await db.query(emailQuery, [emailId]);
             if (emailResult.rows.length > 0) {
                 return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Email already registered' }));
             }
   
             
-            const mobileQuery = 'SELECT * FROM users WHERE phone_no = $1';
+            const mobileQuery = 'SELECT * FROM institutes WHERE phone_no = $1';
             const mobileResult = await db.query(mobileQuery, [phoneNumber]);
             if (mobileResult.rows.length > 0) {
                 return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Mobile number already registered' }));
@@ -50,11 +51,12 @@ exports.createUser = async (req, res) => {
   
             
             const hashedPassword = await bcrypt.hash(password, 10);
+            const instituteId = uuidv4();
   
             
-            const insertQuery = 'INSERT INTO users (username, email, phone_no, password, institute_name) VALUES ($1, $2, $3, $4, $5)';
+            const insertQuery = 'INSERT INTO institutes (username, email, phone_no, password, institute_name,institute_id) VALUES ($1, $2, $3, $4, $5, $6)';
             try {
-                await db.query(insertQuery, [username, emailId, phoneNumber, hashedPassword, instituteName]);
+                await db.query(insertQuery, [username, emailId, phoneNumber, hashedPassword, instituteName,instituteId]);
                 
                 
                 await sendPasswordByEmail(emailId, username, password);
@@ -85,7 +87,7 @@ exports.createUser = async (req, res) => {
         from: 'trjack300@gmail.com',
         to: email,
         subject: 'Your credential',
-        text: `Your username is: ${username}.\nYour temporary password is: ${password}. Please change your password after logging in.`,
+        text: `Your username is: ${username}.\nYour temporary password is: ${password}. \nPlease change your password after logging in.`,
     };
   
     try {

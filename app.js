@@ -18,7 +18,7 @@ const app = http.createServer((req, res) => {
 
   // Route requests to user routes
   if (req.url === '/create-user' && req.method === 'POST') {
-      Routes.createUser(req, res);
+      Routes.registerInstitute(req, res);
   } else if (req.url.startsWith('/get-user/') && req.method === 'GET') {
       Routes.getUserById(req, res);
   } else {
