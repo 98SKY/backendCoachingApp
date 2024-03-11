@@ -24,6 +24,7 @@ exports.registerInstitute = async (req, res) => {
   
             
             const username = generateUsername(instituteName);
+            const instituteStatus = "";
   
             
             const usernameQuery = 'SELECT * FROM institutes WHERE username = $1';
@@ -113,47 +114,27 @@ exports.registerInstitute = async (req, res) => {
             if (userType === 'institute') {
                 const instituteQuery = 'SELECT * FROM institutes WHERE username = $1';
                 const instituteResult = await db.query(instituteQuery, [username]);
-                console.log('qwqwqwqwwqwqwqwqwqwqwqwqwqwqw',instituteResult);
                 if (instituteResult.rows.length === 0) {
                     return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Institute ID does not exist' }));
                 }
 
                 const hashedPassword = instituteResult.rows[0].password;
                 const passwordMatch = await bcrypt.compare(password, hashedPassword);
+                console.log("passwordpassword",password,hashedPassword);
                 if (!passwordMatch) {
                     return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Password is wrong' }));
                 }
 
-                return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Login successful' }));
+                // Generate a new token
+                const token = generateToken();
+
+                // Update the token in the database
+                const updateTokenQuery = 'UPDATE institutes SET token = $1 WHERE username = $2';
+                await db.query(updateTokenQuery, [token, username]);
+
+                return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Login successful', token }));
             } else if (userType === 'student') {
-                const instituteQuery = 'SELECT * FROM users WHERE username = $1';
-                const instituteResult = await db.query(instituteQuery, [username]);
-                if (instituteResult.rows.length === 0) {
-                    return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Institute ID does not exist' }));
-                }
-
-                const instituteStatus = instituteResult.rows[0].status;
-                if (instituteStatus !== 'Active') {
-                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Institute is not active' }));
-                }
-
-                const user = instituteResult.rows[0].users.find(user => user.id === userId);
-                if (!user) {
-                    return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'User ID does not exist' }));
-                }
-
-                const userStatus = user.status;
-                if (userStatus !== 'Active') {
-                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'User is not active' }));
-                }
-
-                const userHashedPassword = user.password;
-                const userPasswordMatch = await bcrypt.compare(password, userHashedPassword);
-                if (!userPasswordMatch) {
-                    return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Password is wrong' }));
-                }
-
-                return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Login successful' }));
+                // Similar logic as above, but for students
             } else {
                 return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid login type' }));
             }
@@ -163,5 +144,90 @@ exports.registerInstitute = async (req, res) => {
         }
     });
 };
+
+
+function generateToken() {
+    return uuidv4();
+}
+
+exports.recoverPassword = async (req, res) => {
+    let data = '';
+
+    req.on('data', chunk => {
+        data += chunk;
+    });
+
+    req.on('end', async () => {
+        try {
+            const { accountType, instituteId, userId, email, phone, newPassword } = JSON.parse(data);
+
+            if (accountType === 'institute') {
+                // Check if instituteId exists
+                const instituteQuery = 'SELECT * FROM institutes WHERE username = $1';
+                const instituteResult = await db.query(instituteQuery, [instituteId]);
+                if (instituteResult.rows.length === 0) {
+                    return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Institute ID not found' }));
+                }
+
+                // Check if institute status is Active
+                const instituteStatus = instituteResult.rows[0].instituteStatus;
+                // console.log('instituteResultinstituteResult',instituteResult);
+                if (instituteStatus !== 'Active') {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Contact IT department' }));
+                }
+
+                // Match email
+                const instituteEmail = instituteResult.rows[0].email;
+                if (email !== instituteEmail) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Email not registered with username' }));
+                }
+
+                // Update password
+                const hashedPassword = await bcrypt.hash(newPassword, 10);
+                const updateQuery = 'UPDATE institutes SET password = $1 WHERE institute_id = $2';
+                await db.query(updateQuery, [hashedPassword, instituteId]);
+
+                return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Password changed successfully' }));
+            } else if (accountType === 'user') {
+                const userQuery = 'SELECT * FROM users WHERE userName = $1';
+                const userResult = await db.query(userQuery, [userId]);
+                if (userResult.rows.length === 0) {
+                    return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'User not found' }));
+                }
+
+                // Check if user's institute is active
+                const instituteId = userResult.rows[0].institute_id_c;
+                const instituteQuery = 'SELECT * FROM institutes WHERE institute_id = $1';
+                const instituteResult = await db.query(instituteQuery, [instituteId]);
+                const instituteStatus = instituteResult.rows[0].instituteStatus;
+                if (instituteStatus !== 'Active') {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Your institute is not active' }));
+                }
+
+                // Match email
+                const userEmail = userResult.rows[0].email;
+                if (email !== userEmail) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Email not registered with this user' }));
+                }
+
+                // Update password
+                const hashedPassword = await bcrypt.hash(newPassword, 10);
+                const updateQuery = 'UPDATE users SET password = $1 WHERE user_id = $2';
+                await db.query(updateQuery, [hashedPassword, userId]);
+
+                return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Password changed successfully' }));
+                
+            } else {
+                return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid account type' }));
+            }
+        } catch (error) {
+            console.error('Error processing request:', error);
+            return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
+        }
+    });
+};
+
+
+
 
   

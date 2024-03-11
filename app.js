@@ -23,7 +23,10 @@ const app = http.createServer((req, res) => {
     Routes.login(req, res);
 } else if (req.url.startsWith('/get-user/') && req.method === 'GET') {
     Routes.getUserById(req, res);
-} else {
+} else if(req.url === '/recoverPassword' && req.method === 'POST'){
+    Routes.recoverPassword(req, res);
+}
+ else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Entry Point Not Found' }));
 }
