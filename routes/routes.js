@@ -24,7 +24,6 @@ exports.registerInstitute = async (req, res) => {
   
             
             const username = generateUsername(instituteName);
-            const instituteStatus = "";
   
             
             const usernameQuery = 'SELECT * FROM institutes WHERE username = $1';
@@ -55,9 +54,9 @@ exports.registerInstitute = async (req, res) => {
             const instituteId = uuidv4();
   
             
-            const insertQuery = 'INSERT INTO institutes (username, email, phone_no, password, institute_name,institute_id) VALUES ($1, $2, $3, $4, $5, $6)';
+            const insertQuery = 'INSERT INTO institutes (username, email, phone_no, password, institute_name,institute_id,institute_status) VALUES ($1, $2, $3, $4, $5, $6, $7)';
             try {
-                await db.query(insertQuery, [username, emailId, phoneNumber, hashedPassword, instituteName,instituteId]);
+                await db.query(insertQuery, [username, emailId, phoneNumber, hashedPassword, instituteName,instituteId, "Active"]);
                 
                 
                 await sendPasswordByEmail(emailId, username, password);
@@ -120,7 +119,7 @@ exports.registerInstitute = async (req, res) => {
 
                 const hashedPassword = instituteResult.rows[0].password;
                 const passwordMatch = await bcrypt.compare(password, hashedPassword);
-                console.log("passwordpassword",password,hashedPassword);
+                // console.log("passwordpassword",password,hashedPassword);
                 if (!passwordMatch) {
                     return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Password is wrong' }));
                 }
@@ -170,7 +169,7 @@ exports.recoverPassword = async (req, res) => {
                 }
 
                 // Check if institute status is Active
-                const instituteStatus = instituteResult.rows[0].instituteStatus;
+                const instituteStatus = instituteResult.rows[0].institute_status;
                 // console.log('instituteResultinstituteResult',instituteResult);
                 if (instituteStatus !== 'Active') {
                     return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Contact IT department' }));
@@ -184,7 +183,8 @@ exports.recoverPassword = async (req, res) => {
 
                 // Update password
                 const hashedPassword = await bcrypt.hash(newPassword, 10);
-                const updateQuery = 'UPDATE institutes SET password = $1 WHERE institute_id = $2';
+                // console.log('hashedPasswordhashedPassword',hashedPassword);
+                const updateQuery = 'UPDATE institutes SET password = $1 WHERE username = $2';
                 await db.query(updateQuery, [hashedPassword, instituteId]);
 
                 return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Password changed successfully' }));
@@ -199,7 +199,7 @@ exports.recoverPassword = async (req, res) => {
                 const instituteId = userResult.rows[0].institute_id_c;
                 const instituteQuery = 'SELECT * FROM institutes WHERE institute_id = $1';
                 const instituteResult = await db.query(instituteQuery, [instituteId]);
-                const instituteStatus = instituteResult.rows[0].instituteStatus;
+                const instituteStatus = instituteResult.rows[0].institute_status;
                 if (instituteStatus !== 'Active') {
                     return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Your institute is not active' }));
                 }
