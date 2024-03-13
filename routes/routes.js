@@ -132,8 +132,27 @@ exports.registerInstitute = async (req, res) => {
                 await db.query(updateTokenQuery, [token, username]);
 
                 return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Login successful', token }));
-            } else if (userType === 'student') {
+            } else if (userType === 'user') {
                 // Similar logic as above, but for students
+                const userQuery = 'SELECT * FROM users WHERE username = $1';
+                const userResult = await db.query(userQuery, [username]);
+                if (userResult.rows.length === 0) {
+                    return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'User ID does not exist' }));
+                }
+
+                const hashedPassword = userResult.rows[0].password;
+                const passwordMatch = await bcrypt.compare(password, hashedPassword);
+                // console.log("passwordpassword",password,hashedPassword);
+                if (!passwordMatch) {
+                    return res.writeHead(401, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Password is wrong' }));
+                }
+
+                // Generate a new token
+                const token = generateToken();
+
+                // Update the token in the database
+                const updateTokenQuery = 'UPDATE users SET token = $1 WHERE username = $2';
+                await db.query(updateTokenQuery, [token, username]);
             } else {
                 return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid login type' }));
             }
