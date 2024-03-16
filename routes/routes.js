@@ -74,8 +74,8 @@ exports.registerInstitute = async (req, res) => {
         }
     });
   };
-  
-  
+
+
   const generateUsername = (instituteName) => {
       
       return instituteName.replace(/\s+/g, '').toLowerCase(); 
@@ -126,12 +126,14 @@ exports.registerInstitute = async (req, res) => {
 
                 // Generate a new token
                 const token = generateToken();
-
+                
                 // Update the token in the database
                 const updateTokenQuery = 'UPDATE institutes SET token = $1 WHERE username = $2';
                 await db.query(updateTokenQuery, [token, username]);
+                const getInstituteId = instituteResult.rows[0].institute_id;
+                // console.log('getInstituteIdgetInstituteId',getInstituteId);
 
-                return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Login successful', token }));
+                return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Login successful', token,getInstituteId }));
             } else if (userType === 'user') {
                 // Similar logic as above, but for students
                 const userQuery = 'SELECT * FROM users WHERE username = $1';
