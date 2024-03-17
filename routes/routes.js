@@ -182,7 +182,7 @@ exports.registerInstitute = async (req, res) => {
 
     req.on('end', async () => {
         try {
-            const { userType, username, userId, password } = JSON.parse(data);
+            const { userType, username, password } = JSON.parse(data);
 
             if (userType === 'institute') {
                 const instituteQuery = 'SELECT * FROM institutes WHERE username = $1';
@@ -209,6 +209,7 @@ exports.registerInstitute = async (req, res) => {
 
                 return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Login successful', token,getInstituteId }));
             } else if (userType === 'user') {
+                
                 // Similar logic as above, but for students
                 const userQuery = 'SELECT * FROM users WHERE username = $1';
                 const userResult = await db.query(userQuery, [username]);
@@ -229,6 +230,9 @@ exports.registerInstitute = async (req, res) => {
                 // Update the token in the database
                 const updateTokenQuery = 'UPDATE users SET token = $1 WHERE username = $2';
                 await db.query(updateTokenQuery, [token, username]);
+                const getInstituteId = userResult.rows[0].institute_id_c;
+
+                return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Login successful', token,getInstituteId }));
             } else {
                 return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid login type' }));
             }
