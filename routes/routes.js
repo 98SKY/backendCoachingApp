@@ -13,72 +13,146 @@ const generatePassword = (username, mobileNumber) => {
 
 exports.registerInstitute = async (req, res) => {
     let data = '';
-  
+
     req.on('data', chunk => {
         data += chunk;
     });
-  
+
     req.on('end', async () => {
         try {
-            const { instituteName, emailId, phoneNumber } = JSON.parse(data);
-  
-            
-            const username = generateUsername(instituteName);
-  
-            
-            const usernameQuery = 'SELECT * FROM institutes WHERE username = $1';
-            const usernameResult = await db.query(usernameQuery, [username]);
-            if (usernameResult.rows.length > 0) {
-                return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Username already exists' }));
-            }
-  
-            
-            const emailQuery = 'SELECT * FROM institutes WHERE email = $1';
-            const emailResult = await db.query(emailQuery, [emailId]);
-            if (emailResult.rows.length > 0) {
-                return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Email already registered' }));
-            }
-  
-            
-            const mobileQuery = 'SELECT * FROM institutes WHERE phone_no = $1';
-            const mobileResult = await db.query(mobileQuery, [phoneNumber]);
-            if (mobileResult.rows.length > 0) {
-                return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Mobile number already registered' }));
-            }
-  
-            
-            const password = generatePassword(username, phoneNumber);
-  
-            
-            const hashedPassword = await bcrypt.hash(password, 10);
-            const instituteId = uuidv4();
-  
-            
-            const insertQuery = 'INSERT INTO institutes (username, email, phone_no, password, institute_name,institute_id,institute_status) VALUES ($1, $2, $3, $4, $5, $6, $7)';
-            try {
-                await db.query(insertQuery, [username, emailId, phoneNumber, hashedPassword, instituteName,instituteId, "Active"]);
-                
-                
-                await sendPasswordByEmail(emailId, username, password);
-  
-                
-                return res.writeHead(201, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'User created successfully' }));
+            const { name, email, phoneNumber, std, medium, course, experienceInCourse, userType, myCoachingId } = JSON.parse(data);
 
-            } catch (error) {
-                console.error('Error creating user:', error);
-                return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
+            if (userType === 'institute') {
+                const username = generateUsername(name);
+
+                const usernameQuery = 'SELECT * FROM institutes WHERE username = $1';
+                const usernameResult = await db.query(usernameQuery, [username]);
+                if (usernameResult.rows.length > 0) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Username already exists' }));
+                }
+
+                const emailQuery = 'SELECT * FROM institutes WHERE email = $1';
+                const emailResult = await db.query(emailQuery, [email]);
+                if (emailResult.rows.length > 0) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Email already registered' }));
+                }
+
+                const mobileQuery = 'SELECT * FROM institutes WHERE phone_no = $1';
+                const mobileResult = await db.query(mobileQuery, [phoneNumber]);
+                if (mobileResult.rows.length > 0) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Mobile number already registered' }));
+                }
+
+                const password = generatePassword(username, phoneNumber);
+
+                const hashedPassword = await bcrypt.hash(password, 10);
+                const instituteId = uuidv4();
+
+                const insertQuery = 'INSERT INTO institutes (username, email, phone_no, password, institute_name, institute_id, institute_status) VALUES ($1, $2, $3, $4, $5, $6, $7)';
+                try {
+                    await db.query(insertQuery, [username, email, phoneNumber, hashedPassword, name, instituteId, "Active"]);
+
+                    await sendPasswordByEmail(email, username, password);
+
+                    return res.writeHead(201, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'User created successfully' }));
+
+                } catch (error) {
+                    console.error('Error creating user:', error);
+                    return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
+                }
+            } else if (userType === 'student') {
+                if (!name || !email || !phoneNumber || !std || !medium || !course || !myCoachingId) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Missing required data' }));
+                }
+
+                const coachingQuery = 'SELECT * FROM institutes WHERE institute_id = $1';
+                const coachingResult = await db.query(coachingQuery, [myCoachingId]);
+                if (coachingResult.rows.length === 0) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Coaching ID not found' }));
+                }
+
+                const emailQuery = 'SELECT * FROM users WHERE email = $1';
+                const emailResult = await db.query(emailQuery, [email]);
+                if (emailResult.rows.length > 0) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Email already registered' }));
+                }
+
+                const userId = uuidv4();
+                const studentId = uuidv4();
+                const username = generateUsername(name);
+                const password = generatePassword(username, phoneNumber);
+                const hashedPassword = await bcrypt.hash(password, 10);
+
+                const insertUserQuery = 'INSERT INTO users (user_id, username, email, role_type, institute_id_c, phone_no, password,user_status) VALUES ($1, $2, $3, $4, $5,$6, $7,$8)';
+                const insertStudentQuery = 'INSERT INTO students (student_id,users_id_c, name, std, medium) VALUES ($1, $2, $3, $4,$5)';
+                try {
+                    
+                    await db.query(insertUserQuery, [userId, username, email, userType, myCoachingId, phoneNumber,hashedPassword,'Active']);
+                    await db.query(insertStudentQuery, [studentId,userId, name,  std, medium]);
+                    await sendPasswordByEmail(email,username,password);
+                    return res.writeHead(201, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Student created successfully' }));
+
+                } catch (error) {
+                    console.error('Error creating user:', error);
+                    return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
+                    
+                }
+
+
+
+            } else if (userType === 'teacher') {
+                if (!name || !email || !phoneNumber || !experienceInCourse  || !course || !myCoachingId) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Missing required data' }));
+                }
+                const coachingQuery = 'SELECT * FROM institutes WHERE institute_id = $1';
+                const coachingResult = await db.query(coachingQuery, [myCoachingId]);
+                if (coachingResult.rows.length === 0) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Coaching ID not found' }));
+                }
+
+                const emailQuery = 'SELECT * FROM users WHERE email = $1';
+                const emailResult = await db.query(emailQuery, [email]);
+                if (emailResult.rows.length > 0) {
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Email already registered' }));
+                }
+
+                const userId = uuidv4();
+                const teacherId = uuidv4();
+                const username = generateUsername(name);
+                const password = generatePassword(username, phoneNumber);
+                const hashedPassword = await bcrypt.hash(password, 10);
+
+                const insertTeacherInUserQuery = 'INSERT INTO users (user_id, username, email, role_type, institute_id_c, phone_no, password,user_status) VALUES ($1, $2, $3, $4, $5,$6, $7,$8)';
+                const insertTeacherQuery = 'INSERT INTO teachers (teacher_id,users_id_c, name, experiance) VALUES ($1, $2, $3, $4)';
+                try {
+                    
+                    await db.query(insertTeacherInUserQuery, [userId, username, email, userType, myCoachingId, phoneNumber,hashedPassword,'Active']);
+                    await db.query(insertTeacherQuery, [teacherId,userId, name, experienceInCourse]);
+                    await sendPasswordByEmail(email,username,password);
+                    return res.writeHead(201, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Teacher id created successfully' }));
+
+                } catch (error) {
+                    console.error('Error creating user:', error);
+                    return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
+                    
+                }
+            } else {
+                return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid userType' }));
             }
         } catch (error) {
-            console.error('Error parsing request body:', error);
-            return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid JSON payload' }));
+            console.error('Error:', error);
+            return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
         }
     });
-  };
+};
 
 
-  const generateUsername = (instituteName) => {
+
+  const generateUsername = (name) => {
+    const nameWithoutSpaces = name.replace(/\s+/g, '').toLowerCase();
+    const randomDigit = Math.floor(Math.random() * 10); 
+    return `${nameWithoutSpaces}${randomDigit}`;
       
-      return instituteName.replace(/\s+/g, '').toLowerCase(); 
   };
   
   
