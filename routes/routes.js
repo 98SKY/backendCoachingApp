@@ -257,7 +257,7 @@ exports.recoverPassword = async (req, res) => {
 
     req.on('end', async () => {
         try {
-            const { accountType, instituteId, userId, email, phone, newPassword } = JSON.parse(data);
+            const { accountType, instituteId, userId, email, phone, newPassword,userCategory,getInstituteIdFromParam} = JSON.parse(data);
 
             if (accountType === 'institute') {
                 // Check if instituteId exists
@@ -288,19 +288,19 @@ exports.recoverPassword = async (req, res) => {
 
                 return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Password changed successfully' }));
             } else if (accountType === 'user') {
-                const userQuery = 'SELECT * FROM users WHERE userName = $1';
+                const userQuery = 'SELECT * FROM users WHERE username = $1';
                 const userResult = await db.query(userQuery, [userId]);
                 if (userResult.rows.length === 0) {
                     return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'User not found' }));
                 }
 
                 // Check if user's institute is active
-                const instituteId = userResult.rows[0].institute_id_c;
+                const instituteID = instituteId || getInstituteIdFromParam;
                 const instituteQuery = 'SELECT * FROM institutes WHERE institute_id = $1';
-                const instituteResult = await db.query(instituteQuery, [instituteId]);
+                const instituteResult = await db.query(instituteQuery, [instituteID]);
                 const instituteStatus = instituteResult.rows[0].institute_status;
                 if (instituteStatus !== 'Active') {
-                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Your institute is not active' }));
+                    return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Contact to your institute' }));
                 }
 
                 // Match email
@@ -311,7 +311,7 @@ exports.recoverPassword = async (req, res) => {
 
                 // Update password
                 const hashedPassword = await bcrypt.hash(newPassword, 10);
-                const updateQuery = 'UPDATE users SET password = $1 WHERE user_id = $2';
+                const updateQuery = 'UPDATE users SET password = $1 WHERE username = $2';
                 await db.query(updateQuery, [hashedPassword, userId]);
 
                 return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Password changed successfully' }));
@@ -325,6 +325,28 @@ exports.recoverPassword = async (req, res) => {
         }
     });
 };
+
+exports.usefulData = async (res) => {
+    try {
+        
+        const query = 'SELECT institute_id, institute_name FROM institutes WHERE institute_status = $1';
+        console.log('queryqueryquery',query);
+        const institutes = await db.query(query, ['Active']);
+        console.log('institutesinstitutes',institutes);
+        
+        const result = institutes?.rows.reduce((acc, { institute_id, institute_name }) => {
+            acc[institute_id] = institute_name;
+            return acc;
+        }, {});
+
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({message: 'data fetched',result}));
+    } catch (error) {
+        console.error('Error processing request:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
+    }
+};
+
 
 
 
