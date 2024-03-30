@@ -25,6 +25,10 @@ const app = http.createServer((req, res) => {
     Routes.getUserById(req, res);
 } else if(req.url === '/recoverPassword' && req.method === 'POST'){
     Routes.recoverPassword(req, res);
+}else if(req.url === '/instituteName' && req.method ==='GET'){
+    Routes.usefulData(res);
+}else if(req.url === '/users-inInstitute' && req.method == 'POST'){
+    Routes.getUsersByCoachingId(req,res);
 }
  else {
     res.writeHead(404, { 'Content-Type': 'application/json' });

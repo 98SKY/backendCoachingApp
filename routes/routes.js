@@ -20,8 +20,8 @@ exports.registerInstitute = async (req, res) => {
 
     req.on('end', async () => {
         try {
-            const { name, email, phoneNumber, std, medium, course, experienceInCourse, userType, myCoachingId } = JSON.parse(data);
-
+            const { name, email, phoneNumber, std, medium, course, experienceInCourse, userType, myCoachingId, address } = JSON.parse(data);
+            //  console.log('dataaaaa',JSON.parse(data));
             if (userType === 'institute') {
                 const username = generateUsername(name);
 
@@ -48,9 +48,9 @@ exports.registerInstitute = async (req, res) => {
                 const hashedPassword = await bcrypt.hash(password, 10);
                 const instituteId = uuidv4();
 
-                const insertQuery = 'INSERT INTO institutes (username, email, phone_no, password, institute_name, institute_id, institute_status) VALUES ($1, $2, $3, $4, $5, $6, $7)';
+                const insertQuery = 'INSERT INTO institutes (username, email, phone_no, password, institute_name, institute_id, institute_status, address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)';
                 try {
-                    await db.query(insertQuery, [username, email, phoneNumber, hashedPassword, name, instituteId, "Active"]);
+                    await db.query(insertQuery, [username, email, phoneNumber, hashedPassword, name, instituteId, "Active",address ]);
 
                     await sendPasswordByEmail(email, username, password);
 
@@ -84,11 +84,11 @@ exports.registerInstitute = async (req, res) => {
                 const hashedPassword = await bcrypt.hash(password, 10);
 
                 const insertUserQuery = 'INSERT INTO users (user_id, username, email, role_type, institute_id_c, phone_no, password,user_status) VALUES ($1, $2, $3, $4, $5,$6, $7,$8)';
-                const insertStudentQuery = 'INSERT INTO students (student_id,users_id_c, name, std, medium) VALUES ($1, $2, $3, $4,$5)';
+                const insertStudentQuery = 'INSERT INTO students (student_id,users_id_c, name, std, medium, institute_id_c, course, address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)';
                 try {
                     
                     await db.query(insertUserQuery, [userId, username, email, userType, myCoachingId, phoneNumber,hashedPassword,'Active']);
-                    await db.query(insertStudentQuery, [studentId,userId, name,  std, medium]);
+                    await db.query(insertStudentQuery, [studentId,userId, name,  std, medium, myCoachingId, course, address]);
                     await sendPasswordByEmail(email,username,password);
                     return res.writeHead(201, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Student created successfully' }));
 
@@ -123,11 +123,11 @@ exports.registerInstitute = async (req, res) => {
                 const hashedPassword = await bcrypt.hash(password, 10);
 
                 const insertTeacherInUserQuery = 'INSERT INTO users (user_id, username, email, role_type, institute_id_c, phone_no, password,user_status) VALUES ($1, $2, $3, $4, $5,$6, $7,$8)';
-                const insertTeacherQuery = 'INSERT INTO teachers (teacher_id,users_id_c, name, experiance) VALUES ($1, $2, $3, $4)';
+                const insertTeacherQuery = 'INSERT INTO teachers (teacher_id,users_id_c, name, experiance, address, institute_id_c, course) VALUES ($1, $2, $3, $4, $5, $6, $7)';
                 try {
                     
                     await db.query(insertTeacherInUserQuery, [userId, username, email, userType, myCoachingId, phoneNumber,hashedPassword,'Active']);
-                    await db.query(insertTeacherQuery, [teacherId,userId, name, experienceInCourse]);
+                    await db.query(insertTeacherQuery, [teacherId,userId, name, experienceInCourse,address, myCoachingId, course]);
                     await sendPasswordByEmail(email,username,password);
                     return res.writeHead(201, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'Teacher id created successfully' }));
 
@@ -346,6 +346,60 @@ exports.usefulData = async (res) => {
         res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
     }
 };
+
+exports.getUsersByCoachingId = async (req, res) => {
+    let data = '';
+    let message='success';
+
+    req.on('data', chunk => {
+        data += chunk;
+    });
+
+    req.on('end', async () => {
+        try {
+            const { coachingId, userCategory, userType } = JSON.parse(data);
+            // console.log('i am here ');
+
+            // Check if coachingId exists in users table
+            const userQuery = 'SELECT * FROM users WHERE institute_id_c = $1';
+            const userResult = await db.query(userQuery, [coachingId]);
+            if (userResult.rows.length === 0 && !userType == 'institute') {
+                return res.writeHead(404, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Coaching ID not found' }));
+            }
+
+            // Check if institute status is Active
+            const instituteQuery = 'SELECT * FROM institutes WHERE institute_id = $1';
+            const instituteResult = await db.query(instituteQuery, [coachingId]);
+            if (instituteResult.rows.length === 0 || instituteResult.rows[0].institute_status !== 'Active') {
+                return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Institute ID not found or inactive' }));
+            }
+
+            // Check user category or user type
+            let roleTypeQuery = '';
+            
+            if (userCategory === 'student') {
+                roleTypeQuery = `SELECT u.username, u.email, u.phone_no, u.user_status, s.name, s.gender, s.dob, s.enterdate, s.course, s.medium, s.address FROM students s JOIN users u ON u.user_id = s.users_id_c WHERE u.role_type = '${userCategory}' AND u.institute_id_c = '${coachingId}'`;
+                // console.log('roleTypeQueryroleTypeQuery',roleTypeQuery);
+                
+            } else if (userCategory === 'teacher') {
+                roleTypeQuery = `SELECT u.username, u.email, u.phone_no, u.user_status, t.name, t.gender, t.dob, t.enterdate, t.course, t.address FROM teachers t JOIN users u ON u.user_id = t.users_id_c WHERE u.role_type = '${userCategory}' AND u.institute_id_c = '${coachingId}'`;
+                console.log('roleTypeQueryroleTypeQuery',roleTypeQuery);
+                
+            } else {
+                return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid user category or type' }));
+            }
+
+            // console.log("roleTypeResult",roleTypeQuery);
+            const roleTypeResult = await db.query(roleTypeQuery);
+    
+            return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: message,users: roleTypeResult.rows }));
+        } catch (error) {
+            // console.error('Error processing request:', error);
+            return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
+        }
+    });
+};
+
 
 
 
