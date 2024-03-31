@@ -378,11 +378,11 @@ exports.getUsersByCoachingId = async (req, res) => {
             let roleTypeQuery = '';
             
             if (userCategory === 'student') {
-                roleTypeQuery = `SELECT u.username, u.email, u.phone_no, u.user_status, s.name, s.gender, s.dob, s.enterdate, s.course, s.medium, s.address FROM students s JOIN users u ON u.user_id = s.users_id_c WHERE u.role_type = '${userCategory}' AND u.institute_id_c = '${coachingId}'`;
+                roleTypeQuery = `SELECT u.username, u.email, u.phone_no, u.user_status, s.name, s.gender, s.dob, s.enterdate, s.course, s.medium, s.address, s.student_id as uuid FROM students s JOIN users u ON u.user_id = s.users_id_c WHERE u.role_type = '${userCategory}' AND u.institute_id_c = '${coachingId}'`;
                 // console.log('roleTypeQueryroleTypeQuery',roleTypeQuery);
                 
             } else if (userCategory === 'teacher') {
-                roleTypeQuery = `SELECT u.username, u.email, u.phone_no, u.user_status, t.name, t.gender, t.dob, t.enterdate, t.course, t.address FROM teachers t JOIN users u ON u.user_id = t.users_id_c WHERE u.role_type = '${userCategory}' AND u.institute_id_c = '${coachingId}'`;
+                roleTypeQuery = `SELECT u.username, u.email, u.phone_no, u.user_status, t.name, t.gender, t.dob, t.enterdate, t.course, t.address, t.teacher_id as uuid FROM teachers t JOIN users u ON u.user_id = t.users_id_c WHERE u.role_type = '${userCategory}' AND u.institute_id_c = '${coachingId}'`;
                 console.log('roleTypeQueryroleTypeQuery',roleTypeQuery);
                 
             } else {
