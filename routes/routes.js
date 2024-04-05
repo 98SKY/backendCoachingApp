@@ -20,7 +20,7 @@ exports.registerInstitute = async (req, res) => {
 
     req.on('end', async () => {
         try {
-            const { name, email, phoneNumber, std, medium, course, experienceInCourse, userType, myCoachingId, address } = JSON.parse(data);
+            const { name, email , phoneNumber, std, medium, course, experienceInCourse, userType, myCoachingId, address } = JSON.parse(data);
             //  console.log('dataaaaa',JSON.parse(data));
             if (userType === 'institute') {
                 const username = generateUsername(name);
@@ -298,6 +298,7 @@ exports.recoverPassword = async (req, res) => {
                 const instituteID = instituteId || getInstituteIdFromParam;
                 const instituteQuery = 'SELECT * FROM institutes WHERE institute_id = $1';
                 const instituteResult = await db.query(instituteQuery, [instituteID]);
+                // console.log('instituteResult',instituteResult);
                 const instituteStatus = instituteResult.rows[0].institute_status;
                 if (instituteStatus !== 'Active') {
                     return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Contact to your institute' }));
@@ -400,9 +401,163 @@ exports.getUsersByCoachingId = async (req, res) => {
     });
 };
 
+exports.getUserData = async (req, res) => {
+    try {
+        let body = '';
+        req.on('data', (chunk) => {
+            body += chunk.toString(); // convert Buffer to string
+        });
+        req.on('end', async () => {
+            const { instituteID, userID, userType } = JSON.parse(body);
+
+            // Check if instituteID exists
+            const instituteQuery = 'SELECT institute_id,institute_status FROM institutes WHERE institute_id = $1';
+            const instituteResult = await db.query(instituteQuery, [instituteID]);
+
+            if (instituteResult.rows.length === 0) {
+                return res.end(JSON.stringify({ message: 'No institute found with the provided ID' }));
+            }
+
+            const instituteStatus = instituteResult.rows[0].institute_status;
+
+            // Check institute status
+            if (instituteStatus !== 'Active') {
+                return res.end(JSON.stringify({ message: 'Please contact the institute for further information' }));
+            }
+
+            // Check if userID exists in the institute
+            if(userType == 'user'){
+                const userQuery = 'SELECT user_status FROM users s WHERE s.user_id = $1 AND s.institute_id_c = $2';
+                const userResult = await db.query(userQuery, [userID, instituteID]);
+
+                if (userResult.rows.length === 0) {
+                    return res.end(JSON.stringify({ message: 'User ID not found in this institute' }));
+                }
+
+                const userStatus = userResult.rows[0].user_status;
+
+                // Check user status
+                if (userStatus !== 'Active') {
+                    return res.end(JSON.stringify({ message: 'Your ID is blocked' }));
+                }
+
+                // Fetch all details of the user
+                const userDataQuery = 'SELECT u.username , u.email , u.phone_no , u.user_status , u.role_type, s."name" , s.gender , s.dob , s.enterdate , s.course , s.address  FROM users u join students s on s.institute_id_c  = u.institute_id_c WHERE u.user_id = $1 AND u.institute_id_c = $2';
+                const userDataResult = await db.query(userDataQuery, [userID, instituteID]);
+                const userData = userDataResult.rows;
+
+                res.end(JSON.stringify({ message: 'User data fetched successfully', userData }));
+            } else {
+                const userDataQuery = ' select i.username , i.email , i.phone_no , i.institute_name , i.institute_status , i.address  FROM institutes i WHERE i.institute_id = $1';
+                const userDataResult = await db.query(userDataQuery, [instituteID]);
+                const userData = userDataResult.rows;
+
+                res.end(JSON.stringify({ message: 'User data fetched successfully', userData }));
+            }
+        });
+    } catch (error) {
+        console.error('Error processing request:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
+    }
+};
+
+exports.getUserCategoryData = async (req, res) => {
+    try {
+        let body = '';
+        req.on('data', (chunk) => {
+            body += chunk.toString(); 
+        });
+        req.on('end', async () => {
+            const { instituteID, userType, userCategory,userId } = JSON.parse(body);
+
+            // Check if instituteID exists
+            const instituteQuery = 'SELECT institute_id,institute_status FROM institutes WHERE institute_id = $1';
+            const instituteResult = await db.query(instituteQuery, [instituteID]);
+
+            if (instituteResult.rows.length === 0) {
+                return res.end(JSON.stringify({ message: 'No institute found with the provided ID' }));
+            }
+
+            const instituteStatus = instituteResult.rows[0].institute_status;
+
+            // Check institute status
+            if (instituteStatus !== 'Active') {
+                return res.end(JSON.stringify({ message: 'Please contact the institute for further information' }));
+            }
+
+            if (userType === 'institute') {
+                let userDataQuery = '';
+                if (userCategory === 'student') {
+                    userDataQuery = `SELECT
+                    u.username,
+                    u.email AS email,
+                    u.phone_no AS phone_no,
+                    u.user_status AS user_status,
+                    u.role_type AS role_type,
+                    s."name" AS student_name,
+                    s.gender AS gender,
+                    s.dob AS dob,
+                    s.enterdate AS enterdate,
+                    s.course AS course,
+                    s.address AS address,
+                    i.institute_name AS institute_name,
+                    i.address AS institute_address,
+                    f.amount AS amount,
+                    f.description AS description
+                FROM
+                    users u
+                JOIN
+                    students s ON s.users_id_c = u.user_id
+                JOIN
+                    fees f ON f.user_id_c = u.user_id
+                JOIN
+                institutes i ON i.institute_id = s.institute_id_c
+                WHERE
+                    u.role_type = 'student'
+                    AND u.institute_id_c = $1 AND s.student_id = $2`;
+                } else if (userCategory === 'teacher') {
+                    userDataQuery = `SELECT
+                    u.username,
+                    u.email AS email,
+                    u.phone_no AS phone_no,
+                    u.user_status AS user_status,
+                    u.role_type AS role_type,
+                    t."name" AS teacher_name,
+                    t.gender AS gender,
+                    t.dob AS dob,
+                    t.enterdate AS enterdate,
+                    t.course AS course,
+                    t.address AS address,
+                    i.institute_name AS institute_name,
+                    i.address AS institute_address
+                FROM
+                    users u
+                JOIN
+                    teachers t ON t.users_id_c = u.user_id
+                JOIN
+                    institutes i ON i.institute_id = t.institute_id_c
+                    WHERE
+                        u.role_type = 'teacher'
+                        AND u.institute_id_c = $1 AND t.teacher_id = $2`
+                } else {
+                    return res.end(JSON.stringify({ message: 'Invalid user category' }));
+                }
+                console.log('userDataQuery',userDataQuery);
+
+                const userDataResult = await db.query(userDataQuery, [ instituteID, userId]);
+                const userData = userDataResult.rows;
+
+                res.end(JSON.stringify({ message: 'User data fetched successfully', userData }));
+            } else {
+                return res.end(JSON.stringify({ message: 'Invalid user type' }));
+            }
+        });
+    } catch (error) {
+        console.error('Error processing request:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
+    }
+};
 
 
 
 
-
-  
