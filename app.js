@@ -29,6 +29,10 @@ const app = http.createServer((req, res) => {
     Routes.usefulData(res);
 }else if(req.url === '/users-inInstitute' && req.method == 'POST'){
     Routes.getUsersByCoachingId(req,res);
+} else if(req.url === '/user-profile' && req.method == 'POST'){
+    Routes.getUserData(req,res);
+}else if(req.url === '/detailsOfUser' && req.method == 'POST'){
+    Routes.getUserCategoryData(req,res);
 }
  else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
