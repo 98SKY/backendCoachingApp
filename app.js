@@ -22,7 +22,7 @@ const app = http.createServer((req, res) => {
 } else if (req.url === '/login' && req.method === 'POST') {
     Routes.login(req, res);
 } else if (req.url.startsWith('/get-user/') && req.method === 'GET') {
-    Routes.getUserById(req, res);
+    Routes.getUserBPyId(req, res);
 } else if(req.url === '/recoverPassword' && req.method === 'POST'){
     Routes.recoverPassword(req, res);
 }else if(req.url === '/instituteName' && req.method ==='GET'){
@@ -33,6 +33,8 @@ const app = http.createServer((req, res) => {
     Routes.getUserData(req,res);
 }else if(req.url === '/detailsOfUser' && req.method == 'POST'){
     Routes.getUserCategoryData(req,res);
+}else if(req.url ==='/verify-otp' && req.method == 'POST'){
+    Routes.verifyOtp(req,res);
 }
  else {
     res.writeHead(404, { 'Content-Type': 'application/json' });

@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const http = require('http');
 const { transporter } = require('../services/service');
 const { v4: uuidv4 } = require('uuid');
+const otpGenerate = require('../Global')
 
 const generatePassword = (username, mobileNumber) => {
     const lastFourDigits = mobileNumber.slice(-4);
@@ -144,6 +145,36 @@ exports.registerInstitute = async (req, res) => {
             return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
         }
     });
+};
+
+
+exports.verifyOtp = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+
+        let verifyQuery, verifyParams;
+        if (userType === 'institute') {
+            verifyQuery = 'SELECT * FROM institutes WHERE email = $1 AND authenticate = $2';
+            verifyParams = [email, otp];
+        } else {
+            verifyQuery = 'SELECT * FROM users WHERE email = $1 AND authenticate = $2';
+            verifyParams = [email, otp];
+        }
+
+        const verifyResult = await db.query(verifyQuery, verifyParams);
+        if (verifyResult.rows.length === 0) {
+            return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Invalid OTP' }));
+        }
+
+        // OTP verified, proceed with registration
+        // Insert query will run for all registration types here
+
+        return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: 'OTP verified successfully' }));
+
+    } catch (error) {
+        console.error('Error:', error);
+        return res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Internal Server Error' }));
+    }
 };
 
 
