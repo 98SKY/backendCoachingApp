@@ -35,6 +35,8 @@ const app = http.createServer((req, res) => {
     Routes.getUserCategoryData(req,res);
 }else if(req.url ==='/verify-otp' && req.method == 'POST'){
     Routes.verifyOtp(req,res);
+}else if(req.url ==='/dashBoardCount' && req.method == 'POST'){
+    Routes.dashboardCounts(req,res);
 }
  else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
