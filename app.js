@@ -1,55 +1,31 @@
+const express = require('express');
 const http = require('http');
 const envConfig = require('./config/env');
 const Routes = require('./routes/routes');
+const app = express();
 
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'); 
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-const app = http.createServer((req, res) => {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*'); // Allow requests from any origin
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS'); // Allow specified HTTP methods
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // Allow specified headers
-
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
-      res.writeHead(200);
-      res.end();
-      return;
+    return res.sendStatus(200);
   }
-
-  // Route requests to user routes
-  if (req.url === '/register-institute' && req.method === 'POST') {
-    Routes.registerInstitute(req, res);
-} else if (req.url === '/login' && req.method === 'POST') {
-    Routes.login(req, res);
-} else if (req.url.startsWith('/get-user/') && req.method === 'GET') {
-    Routes.getUserBPyId(req, res);
-} else if(req.url === '/recoverPassword' && req.method === 'POST'){
-    Routes.recoverPassword(req, res);
-}else if(req.url === '/instituteName' && req.method ==='GET'){
-    Routes.usefulData(res);
-}else if(req.url === '/users-inInstitute' && req.method == 'POST'){
-    Routes.getUsersByCoachingId(req,res);
-} else if(req.url === '/user-profile' && req.method == 'POST'){
-    Routes.getUserData(req,res);
-}else if(req.url === '/detailsOfUser' && req.method == 'POST'){
-    Routes.getUserCategoryData(req,res);
-}else if(req.url ==='/verify-otp' && req.method == 'POST'){
-    Routes.verifyOtp(req,res);
-}else if(req.url ==='/dashBoardCount' && req.method == 'POST'){
-    Routes.dashboardCounts(req,res);
-}
- else {
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Entry Point Not Found' }));
-}
+  next();
 });
 
+app.use(express.json());
 
-// Get port from environment variables
+app.use(Routes);
+
+app.use((req, res) => {
+  res.status(404).json({ error: 'Entry Point Not Found' });
+});
+
 const env = process.env.NODE_ENV || 'development';
 const port = envConfig[env].PORT;
 
-// Start server
-app.listen(port, () => {
+http.createServer(app).listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
