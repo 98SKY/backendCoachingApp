@@ -46,7 +46,7 @@ exports.dashboardCounts = async (req, res) => {
                 FROM students s
                 JOIN users u ON u.user_id = s.users_id_c
                 WHERE s.institute_id_c = $1
-                  AND s.enterdate BETWEEN $2 AND $3`,
+                  AND s.entered_date BETWEEN $2 AND $3`,
                 [instituteID, startDate, endDate]
             );
             queries.push(studentCountQuery.then(result => {
@@ -65,7 +65,7 @@ exports.dashboardCounts = async (req, res) => {
                 FROM teachers t
                 JOIN users u ON u.user_id = t.users_id_c
                 WHERE t.institute_id_c = $1
-                  AND t.enterdate BETWEEN $2 AND $3`,
+                  AND t.entered_date BETWEEN $2 AND $3`,
                 [instituteID, startDate, endDate]
             );
             queries.push(teacherCountQuery.then(result => {

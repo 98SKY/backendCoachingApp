@@ -33,7 +33,7 @@ exports.getUserCategoryData = async (req, res) => {
                     u.role_type AS role_type,
                     s."name" AS student_name,
                     s.gender AS gender,
-                    s.enterdate AS enterdate,
+                    s.entered_date,
                     s.course AS course,
                     s.address AS address,
                     i.institute_name AS institute_name,
@@ -62,7 +62,7 @@ exports.getUserCategoryData = async (req, res) => {
                     t."name" AS teacher_name,
                     t.gender AS gender,
                     t.dob AS dob,
-                    t.enterdate AS enterdate,
+                    t.entered_date AS enterdate,
                     t.course AS course,
                     t.address AS address,
                     i.institute_name AS institute_name,
@@ -138,7 +138,7 @@ exports.getUserData = async (req, res) => {
                 u.role_type,
                 s."name",
                 s.gender,
-                s.enterdate,
+                s.entered_date,
                 s.course,
                 s.address
             FROM users u

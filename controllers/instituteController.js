@@ -161,14 +161,14 @@ exports.getUsersByCoachingId = async (req, res) => {
 
         if (userCategory === 'student') {
             roleTypeQuery = `
-                SELECT u.username, u.email, u.phone_no, u.user_status, s.name, s.gender, s.enterdate, s.course, s.medium, s.address, s.student_id as uuid
+                SELECT u.username, u.email, u.phone_no, u.user_status, s.name, s.gender, s.entered_date, s.course, s.medium, s.address, s.student_id as uuid
                 FROM students s
                 JOIN users u ON u.user_id = s.users_id_c
                 WHERE u.role_type = $1 AND u.institute_id_c = $2
             `;
         } else if (userCategory === 'teacher') {
             roleTypeQuery = `
-                SELECT u.username, u.email, u.phone_no, u.user_status, t.name, t.gender, t.dob, t.enterdate, t.course, t.address, t.teacher_id as uuid
+                SELECT u.username, u.email, u.phone_no, u.user_status, t.name, t.gender, t.dob, t.entered_date, t.course, t.address, t.teacher_id as uuid
                 FROM teachers t
                 JOIN users u ON u.user_id = t.users_id_c
                 WHERE u.role_type = $1 AND u.institute_id_c = $2
