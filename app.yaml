@@ -1,0 +1,14 @@
+runtime: nodejs14
+
+# Ensure that the entrypoint matches the path to your main server file
+# For example, if your main server file is server.js, use the following:
+entrypoint: node app.js
+
+# Skip the start command if you're using the default entrypoint
+# start command: npm start
+
+env_variables:
+  # Add your environment variables here
+  MY_ENV_VAR: 'uat'
+
+# Add any other configurations your application needs
