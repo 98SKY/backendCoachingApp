@@ -8,7 +8,7 @@ const {generatePassword, generateUsername,} = require('../Global');
 
 
 exports.registerInstitute = async (req, res) => {
-    const { name, email, phoneNumber, std, medium, course, experienceInCourse, userType, myCoachingId, address, amount } = req.body;
+    const { name, email, phoneNumber, std, medium, course, experienceInCourse, userType, myCoachingId, address, fee } = req.body;
 
     try {
         if (userType === 'institute') {
@@ -62,18 +62,19 @@ exports.registerInstitute = async (req, res) => {
 
             const userId = uuidv4();
             const studentId = uuidv4();
+            const feeId = uuidv4();
             const username = generateUsername(name);
             const password = generatePassword(username, phoneNumber);
             const hashedPassword = await bcrypt.hash(password, 10);
 
             const insertUserQuery = 'INSERT INTO users (user_id, username, email, role_type, institute_id_c, phone_no, password, user_status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)';
             const insertStudentQuery = 'INSERT INTO students (student_id, users_id_c, name, std, medium, institute_id_c, course, address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)';
-            const insertFeeQuery = 'INSERT INTO fees (amount, description, institute_id_c, user_id_c, duration) VALUES ($1, $2, $3, $4, $5)';
+            const insertFeeQuery = 'INSERT INTO fees (fee_id,amount, description, institute_id_c, user_id_c, duration) VALUES ($1, $2, $3, $4, $5, $6)';
 
             await sendPasswordByEmail(email, username, password);
             await db.query(insertUserQuery, [userId, username, email, userType, myCoachingId, phoneNumber, hashedPassword, 'Active']);
             await db.query(insertStudentQuery, [studentId, userId, name, std, medium, myCoachingId, course, address]);
-            await db.query(insertFeeQuery, [amount, 'Paid', myCoachingId, userId, '6 months']);
+            await db.query(insertFeeQuery, [feeId, fee, 'Paid', myCoachingId, userId, '6 months']);
 
             return res.status(201).json({ message: 'Student created successfully' });
 

@@ -8,7 +8,7 @@ exports.getUserCategoryData = async (req, res) => {
         // Check if instituteID exists
         const instituteQuery = 'SELECT institute_id, institute_status FROM institutes WHERE institute_id = $1';
         const instituteResult = await db.query(instituteQuery, [instituteID]);
-
+        console.log("instituteResult",instituteResult);
         if (instituteResult.rows.length === 0) {
             return res.status(404).json({ message: 'No institute found with the provided ID' });
         }
