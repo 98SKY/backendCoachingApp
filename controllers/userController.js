@@ -5,11 +5,9 @@ exports.getUserCategoryData = async (req, res) => {
   try {
     const { instituteID, userType, userCategory, userId } = req.body;
 
-    // Check if instituteID exists
     const instituteQuery =
       "SELECT institute_id, institute_status FROM institutes WHERE institute_id = $1";
     const instituteResult = await db.query(instituteQuery, [instituteID]);
-    console.log("instituteResult", instituteResult);
     if (instituteResult.rows.length === 0) {
       return res
         .status(404)
@@ -17,8 +15,6 @@ exports.getUserCategoryData = async (req, res) => {
     }
 
     const instituteStatus = instituteResult.rows[0].institute_status;
-
-    // Check institute status
     if (instituteStatus !== "Active") {
       return res
         .status(400)
@@ -105,9 +101,50 @@ exports.getUserCategoryData = async (req, res) => {
       const userDataResult = await db.query(userDataQuery, queryParams);
       const userData = userDataResult.rows;
 
-      return res
-        .status(200)
-        .json({ message: "User data fetched successfully", userData });
+      // Structure the response for a single user object
+      if (userData.length > 0) {
+        const courses = userData.map(course => ({
+          course_name: course.course_name,
+          course_status: course.course_status,
+          course_enrolled_date: course.course_enrolled_date || course.course_assigned_date,
+          experience: userData[0].experience || null
+        }));
+
+        const response = {
+          personalInfo: {
+            email: userData[0].email,
+            phone_no: userData[0].phone_no,
+            address: userData[0].address,
+            user_status: userData[0].user_status,
+            name: userData[0].student_name || userData[0].teacher_name,
+            gender: userData[0].gender,
+            dob: userData[0].dob || null,
+            entered_date: userData[0].entered_date
+          },
+          instituteInfo: {
+            institute_name: userData[0].institute_name,
+            institute_address: userData[0].institute_address,
+            institute_userName: userData[0].username,
+            role_type: userData[0].role_type,
+            institute_status: userData[0].instituteStatus
+          },
+          feeInfo: {
+            amount: userData[0].amount || null,
+            description: userData[0].description || null
+          },
+          studyInfo: {
+            
+          },
+          courses: courses
+        };
+
+        return res.status(200).json({
+          message: "User data fetched successfully",
+          userData: [response]
+        });
+      } else {
+        return res.status(404).json({ message: "User data not found" });
+      }
     } else {
       return res.status(400).json({ message: "Invalid user type" });
     }
@@ -117,11 +154,13 @@ exports.getUserCategoryData = async (req, res) => {
   }
 };
 
+
+
+
 exports.getUserData = async (req, res) => {
   try {
     const { instituteID, userID, userType } = req.body;
 
-    // Check if instituteID exists
     const instituteQuery =
       "SELECT institute_id, institute_status FROM institutes WHERE institute_id = $1";
     const instituteResult = await db.query(instituteQuery, [instituteID]);
@@ -134,7 +173,7 @@ exports.getUserData = async (req, res) => {
 
     const instituteStatus = instituteResult.rows[0].institute_status;
 
-    // Check institute status
+
     if (instituteStatus !== "Active") {
       return res
         .status(400)
@@ -144,7 +183,6 @@ exports.getUserData = async (req, res) => {
     }
 
     if (userType === "user") {
-      // Check if userID exists in the institute
       const userQuery =
         "SELECT user_status FROM users WHERE user_id = $1 AND institute_id_c = $2";
       const userResult = await db.query(userQuery, [userID, instituteID]);
@@ -157,12 +195,10 @@ exports.getUserData = async (req, res) => {
 
       const userStatus = userResult.rows[0].user_status;
 
-      // Check user status
       if (userStatus !== "Active") {
         return res.status(400).json({ message: "Your ID is blocked" });
       }
 
-      // Fetch all details of the user
       const userDataQuery = `SELECT 
                 u.username,
                 u.email,
@@ -187,7 +223,6 @@ exports.getUserData = async (req, res) => {
         .status(200)
         .json({ message: "User data fetched successfully", data });
     } else {
-      // Fetch details of the institute
       const instituteDataQuery = `SELECT
                 i.username,
                 i.email,

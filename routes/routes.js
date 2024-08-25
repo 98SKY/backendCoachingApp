@@ -16,5 +16,6 @@ router.post('/detailsOfUser', userRoutes.getUserCategoryData);
 router.post('/verify-otp', loginRoutes.verifyOtp);
 router.post('/dashBoardCount', dashBoardRoutes.dashboardCounts);
 router.post('/register', instituteRoutes.registerInstitute);
+router.get('/courses', instituteRoutes.courseName);
 
 module.exports = router;
