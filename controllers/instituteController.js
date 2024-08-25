@@ -260,104 +260,139 @@ exports.usefulData = async (req, res) => {
 };
 
 exports.getUsersByCoachingId = async (req, res) => {
-  const { coachingId, userCategory, userType } = req.body;
-  let message = "Success";
-
-  try {
-    // Check if coachingId exists in users table
-    const userQuery = "SELECT * FROM users WHERE institute_id_c = $1";
-    const userResult = await db.query(userQuery, [coachingId]);
-    if (userResult.rows.length === 0 && userType !== "institute") {
-      return res.status(404).json({ error: "Coaching ID not found" });
-    }
-
-    // Check if institute status is Active
-    const instituteQuery = "SELECT * FROM institutes WHERE institute_id = $1";
-    const instituteResult = await db.query(instituteQuery, [coachingId]);
-    if (
-      instituteResult.rows.length === 0 ||
-      instituteResult.rows[0].institute_status !== "Active"
-    ) {
-      return res
-        .status(400)
-        .json({ error: "Institute ID not found or inactive" });
-    }
-
-    // Check user category or user type
-    let roleTypeQuery = "";
-
-    if (userCategory === "student") {
-      roleTypeQuery = `
-            SELECT 
-            u.username, 
-            u.email, 
-            u.phone_no, 
-            u.user_status, 
-            s.name, 
-            s.gender, 
-            s.entered_date,  
-            s.medium, 
-            s.address, 
-            s.student_id as uuid,
-            cm.master_course_name as course,  
-            c.course_status,
-            c.entered_date as course_enrolled_date
+    const { coachingId, userCategory } = req.body;
+    let message = "Success";
+  
+    try {
+      // Validate coachingId existence in users table
+      const userQuery = "SELECT * FROM users WHERE institute_id_c = $1";
+      const userResult = await db.query(userQuery, [coachingId]);
+  
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ error: "Coaching ID not found" });
+      }
+  
+      // Validate institute status is Active
+      const instituteQuery = "SELECT * FROM institutes WHERE institute_id = $1";
+      const instituteResult = await db.query(instituteQuery, [coachingId]);
+  
+      if (
+        instituteResult.rows.length === 0 ||
+        instituteResult.rows[0].institute_status !== "Active"
+      ) {
+        return res.status(400).json({ error: "Institute ID not found or inactive" });
+      }
+  
+      // Define the base query
+      let roleTypeQuery = `
+        SELECT 
+          u.username, 
+          u.email, 
+          u.phone_no, 
+          u.user_status, 
+          u.institute_id_c,
+          s.name, 
+          s.gender, 
+          s.entered_date,  
+          s.medium, 
+          s.address, 
+          s.student_id as uuid,
+          cm.master_course_name as course,  
+          c.course_status,
+          c.entered_date as course_enrolled_date
         FROM 
-            students s
+          students s
         JOIN 
-            users u ON u.user_id = s.users_id_c
+          users u ON u.user_id = s.users_id_c
         JOIN 
-            courses c ON c.user_id_c = u.user_id
+          courses c ON c.user_id_c = u.user_id
         JOIN 
-            course_master cm ON c.master_course_id_c = cm.master_course_id
+          course_master cm ON c.master_course_id_c = cm.master_course_id
         WHERE 
-            u.role_type = $1
-            AND u.institute_id_c = $2
-            AND c.institute_id_c = $2 
-            AND c.user_id_c = u.user_id        
-            `;
-    } else if (userCategory === "teacher") {
-      roleTypeQuery = `
-            SELECT 
+          u.role_type = $1
+          AND u.institute_id_c = $2
+          AND c.institute_id_c = $2 
+          AND c.user_id_c = u.user_id;
+      `;
+  
+      if (userCategory === "teacher") {
+        roleTypeQuery = `
+          SELECT 
             u.username, 
             u.email, 
             u.phone_no, 
             u.user_status, 
+            u.institute_id_c,
             t.name,  
             t.address, 
             t.teacher_id as uuid, 
             cm.master_course_name as course,  
             c.course_status,
             c.experiance,
-            c.entered_date as course_assigned_date
-        FROM 
+            c.entered_date as course_enrolled_date
+          FROM 
             teachers t
-        JOIN 
+          JOIN 
             users u ON u.user_id = t.users_id_c
-        JOIN 
+          JOIN 
             courses c ON c.user_id_c = u.user_id
-        JOIN 
+          JOIN 
             course_master cm ON c.master_course_id_c = cm.master_course_id
-        WHERE 
+          WHERE 
             u.role_type = $1
             AND u.institute_id_c = $2
             AND c.institute_id_c = $2 
-            AND c.user_id_c = u.user_id
-            `;
-    } else {
-      return res.status(400).json({ error: "Invalid user category or type" });
+            AND c.user_id_c = u.user_id;
+        `;
+      } else if (userCategory !== "student") {
+        return res.status(400).json({ error: "Invalid user category" });
+      }
+  
+      // Execute the query
+      const roleTypeResult = await db.query(roleTypeQuery, [userCategory, coachingId]);
+  
+      if (roleTypeResult.rows.length === 0) {
+        return res.status(404).json({ error: "No users found for the given category and institute" });
+      }
+  
+      // Process the results to group courses by user
+      const userMap = {};
+  
+      roleTypeResult.rows.forEach(row => {
+        const userId = row.uuid;
+        if (!userMap[userId]) {
+          userMap[userId] = {
+            username: row.username,
+            email: row.email,
+            phone_no: row.phone_no,
+            user_status: row.user_status,
+            institute_id_c: row.institute_id_c,
+            name: row.name,
+            gender: row.gender,
+            entered_date: row.entered_date,
+            medium: row.medium,
+            address: row.address,
+            uuid: row.uuid,
+            courses: []
+          };
+        }
+        userMap[userId].courses.push({
+          course: row.course,
+          course_status: row.course_status,
+          course_enrolled_date: row.course_enrolled_date
+        });
+      });
+  
+      const users = Object.values(userMap);
+  
+      return res.status(200).json({ message, users });
+    } catch (error) {
+      console.error("Error processing request:", error);
+      return res.status(500).json({ error: "Internal Server Error" });
     }
-
-    const roleTypeResult = await db.query(roleTypeQuery, [
-      userCategory,
-      coachingId,
-    ]);
-    return res.status(200).json({ message, users: roleTypeResult.rows });
-  } catch (error) {
-    console.error("Error processing request:", error);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
-};
+  };
+  
+  
 
 exports.courseName = async (req, res) => {
   const { coachingId } = req.query;
