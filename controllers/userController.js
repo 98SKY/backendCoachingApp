@@ -16,11 +16,9 @@ exports.getUserCategoryData = async (req, res) => {
 
     const instituteStatus = instituteResult.rows[0].institute_status;
     if (instituteStatus !== "Active") {
-      return res
-        .status(400)
-        .json({
-          message: "Please contact the institute for further information",
-        });
+      return res.status(400).json({
+        message: "Please contact the institute for further information",
+      });
     }
 
     if (userType === "institute") {
@@ -103,11 +101,12 @@ exports.getUserCategoryData = async (req, res) => {
 
       // Structure the response for a single user object
       if (userData.length > 0) {
-        const courses = userData.map(course => ({
+        const courses = userData.map((course) => ({
           course_name: course.course_name,
           course_status: course.course_status,
-          course_enrolled_date: course.course_enrolled_date || course.course_assigned_date,
-          experience: userData[0].experience || null
+          course_enrolled_date:
+            course.course_enrolled_date || course.course_assigned_date,
+          experience: userData[0].experience || null,
         }));
 
         const response = {
@@ -119,28 +118,26 @@ exports.getUserCategoryData = async (req, res) => {
             name: userData[0].student_name || userData[0].teacher_name,
             gender: userData[0].gender,
             dob: userData[0].dob || null,
-            entered_date: userData[0].entered_date
+            entered_date: userData[0].entered_date,
           },
           instituteInfo: {
             institute_name: userData[0].institute_name,
             institute_address: userData[0].institute_address,
             institute_userName: userData[0].username,
             role_type: userData[0].role_type,
-            institute_status: userData[0].instituteStatus
+            institute_status: userData[0].instituteStatus,
           },
           feeInfo: {
             amount: userData[0].amount || null,
-            description: userData[0].description || null
+            description: userData[0].description || null,
           },
-          studyInfo: {
-            
-          },
-          courses: courses
+          studyInfo: {},
+          courses: courses,
         };
 
         return res.status(200).json({
           message: "User data fetched successfully",
-          userData: [response]
+          userData: [response],
         });
       } else {
         return res.status(404).json({ message: "User data not found" });
@@ -153,9 +150,6 @@ exports.getUserCategoryData = async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
-
-
 
 exports.getUserData = async (req, res) => {
   try {
@@ -173,13 +167,10 @@ exports.getUserData = async (req, res) => {
 
     const instituteStatus = instituteResult.rows[0].institute_status;
 
-
     if (instituteStatus !== "Active") {
-      return res
-        .status(400)
-        .json({
-          message: "Please contact the institute for further information",
-        });
+      return res.status(400).json({
+        message: "Please contact the institute for further information",
+      });
     }
 
     if (userType === "user") {
