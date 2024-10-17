@@ -7,7 +7,7 @@ const transporter = nodemailer.createTransport({
     secure: false,
     auth: {
         user: 'trjack300@gmail.com',
-        pass: 'nxtt geex cjrb slbu'
+        pass: 'ubkh bfcf xtdy rgti'
   }
 });
 
@@ -15,8 +15,8 @@ const sendPasswordByEmail = async (email, username, password) => {
   const mailOptions = {
       from: 'trjack300@gmail.com',
       to: email,
-      subject: 'Your credential',
-      text: `Your username is: ${username}.\nYour temporary password is: ${password}. \nPlease change your password after logging in.`,
+      subject: 'Your account has been created',
+      html: `<h2>Your account has been created successfully!</h2> <p>username is: ${username}</p> <p>password is: ${password}</p>`,
   };
 
   try {

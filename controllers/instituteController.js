@@ -21,220 +21,313 @@ exports.registerInstitute = async (req, res) => {
     fee,
   } = req.body;
 
+  if (!name || !email || !phoneNumber || !userType) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
   try {
-    if (userType === "institute") {
-      const username = generateUsername(name);
-
-      const usernameQuery = "SELECT * FROM institutes WHERE username = $1";
-      const usernameResult = await db.query(usernameQuery, [username]);
-      if (usernameResult.rows.length > 0) {
-        return res.status(400).json({ error: "Username already exists" });
-      }
-
-      const emailQuery = "SELECT * FROM institutes WHERE email = $1";
-      const emailResult = await db.query(emailQuery, [email]);
-      if (emailResult.rows.length > 0) {
-        return res.status(400).json({ error: "Email already registered" });
-      }
-
-      const mobileQuery = "SELECT * FROM institutes WHERE phone_no = $1";
-      const mobileResult = await db.query(mobileQuery, [phoneNumber]);
-      if (mobileResult.rows.length > 0) {
-        return res
-          .status(400)
-          .json({ error: "Mobile number already registered" });
-      }
-
-      const password = generatePassword(username, phoneNumber);
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const instituteId = uuidv4();
-
-      const insertQuery =
-        "INSERT INTO institutes (username, email, phone_no, password, institute_name, institute_id, institute_status, address, entered_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8,$9)";
-      await db.query(insertQuery, [
-        username,
-        email,
-        phoneNumber,
-        hashedPassword,
-        name,
-        instituteId,
-        "Active",
-        address,
-        todayDate,
-      ]);
-
-      await sendPasswordByEmail(email, username, password);
-
-      return res
-        .status(201)
-        .json({ message: "Institute created successfully" });
-    } else if (userType === "student") {
-      if (
-        !name ||
-        !email ||
-        !phoneNumber ||
-        !std ||
-        !medium ||
-        !course ||
-        !myCoachingId
-      ) {
-        return res.status(400).json({ error: "Missing required data" });
-      }
-
-      const coachingQuery = "SELECT * FROM institutes WHERE institute_id = $1";
-      const coachingResult = await db.query(coachingQuery, [myCoachingId]);
-      if (coachingResult.rows.length === 0) {
-        return res.status(400).json({ error: "Coaching ID not found" });
-      }
-
-      const emailQuery =
-        "SELECT * FROM users WHERE email = $1 and institute_id_c = $2";
-      const emailResult = await db.query(emailQuery, [email, myCoachingId]);
-      if (emailResult.rows.length > 0) {
-        return res.status(400).json({ error: "Email already registered" });
-      }
-
-      const userId = uuidv4();
-      const studentId = uuidv4();
-      const feeId = uuidv4();
-      const username = generateUsername(name);
-      const password = generatePassword(username, phoneNumber);
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const insertUserQuery =
-        "INSERT INTO users (user_id, username, email, role_type, institute_id_c, phone_no, password, user_status, entered_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)";
-      const insertStudentQuery =
-        "INSERT INTO students (student_id, users_id_c, name, std, medium, institute_id_c, address) VALUES ($1, $2, $3, $4, $5, $6, $7)";
-      const insertFeeQuery =
-        "INSERT INTO fees (fee_id,amount, description, institute_id_c, user_id_c, duration, entered_date) VALUES ($1, $2, $3, $4, $5, $6, $7)";
-      const insertStudentCourseQuery =
-        "INSERT INTO courses (institute_id_c, user_id_c, course_status, course_id,	entered_date, master_course_id_c) VALUES($1, $2, $3, $4, $5, $6)";
-
-      await db.query(
-        insertUserQuery,
-        [
-          userId,
-          username,
-          email,
-          userType,
-          myCoachingId,
-          phoneNumber,
-          hashedPassword,
-          "Active",
-        ],
-        todayDate
-      );
-      await db.query(insertStudentQuery, [
-        studentId,
-        userId,
-        name,
-        std,
-        medium,
-        myCoachingId,
-        address,
-      ]);
-      await db.query(insertFeeQuery, [
-        feeId,
-        fee,
-        "Paid",
-        myCoachingId,
-        userId,
-        "6 months",
-        todayDate,
-      ]);
-      for (let courseId of course) {
-        const studentCourseId = uuidv4();
-        await db.query(insertStudentCourseQuery, [
-          myCoachingId,
-          userId,
-          "Active",
-          studentCourseId,
-          todayDate,
-          courseId,
-        ]);
-      }
-      await sendPasswordByEmail(email, username, password);
-
-      return res.status(201).json({ message: "Student created successfully" });
-    } else if (userType === "teacher") {
-      if (
-        !name ||
-        !email ||
-        !phoneNumber ||
-        !experienceInCourse ||
-        !course ||
-        !myCoachingId
-      ) {
-        return res.status(400).json({ error: "Missing required data" });
-      }
-
-      const coachingQuery = "SELECT * FROM institutes WHERE institute_id = $1";
-      const coachingResult = await db.query(coachingQuery, [myCoachingId]);
-      if (coachingResult.rows.length === 0) {
-        return res.status(400).json({ error: "Coaching ID not found" });
-      }
-
-      const emailQuery =
-        "SELECT * FROM users WHERE email = $1 and institute_id_c = $2";
-      const emailResult = await db.query(emailQuery, [email, myCoachingId]);
-      if (emailResult.rows.length > 0) {
-        return res.status(400).json({ error: "Email already registered" });
-      }
-
-      const userId = uuidv4();
-      const teacherId = uuidv4();
-      const username = generateUsername(name);
-      const password = generatePassword(username, phoneNumber);
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const insertTeacherInUserQuery =
-        "INSERT INTO users (user_id, username, email, role_type, institute_id_c, phone_no, password, user_status, entered_date) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)";
-      const insertTeacherQuery =
-        "INSERT INTO teachers (teacher_id, users_id_c, name, address, institute_id_c, entered_date) VALUES ($1, $2, $3, $4, $5, $6)";
-      const insertTeacherCourseQuery =
-        "INSERT INTO courses(institute_id_c, user_id_c, course_status,	course_id,	entered_date, master_course_id_c, experiance) VALUES($1, $2, $3, $4, $5, $6, $7)";
-
-      await db.query(insertTeacherInUserQuery, [
-        userId,
-        username,
-        email,
-        userType,
-        myCoachingId,
-        phoneNumber,
-        hashedPassword,
-        "Active",
-        todayDate,
-      ]);
-      await db.query(insertTeacherQuery, [
-        teacherId,
-        userId,
-        name,
-        address,
-        myCoachingId,
-        todayDate,
-      ]);
-      for (let courseId of course) {
-        const teacherCourseId = uuidv4();
-        await db.query(insertTeacherCourseQuery, [
-          myCoachingId,
-          userId,
-          "Active",
-          teacherCourseId,
-          todayDate,
-          courseId,
-          experienceInCourse,
-        ]);
-      }
-      await sendPasswordByEmail(email, username, password);
-      return res.status(201).json({ message: "Teacher created successfully" });
-    } else {
-      return res.status(400).json({ error: "Invalid userType" });
+    switch (userType) {
+      case "institute":
+        await handleInstituteRegistration(
+          { name, email, phoneNumber, address },
+          res
+        );
+        break;
+      case "student":
+        await handleStudentRegistration(
+          {
+            name,
+            email,
+            phoneNumber,
+            std,
+            medium,
+            course,
+            myCoachingId,
+            address,
+            fee,
+          },
+          res
+        );
+        break;
+      case "teacher":
+        await handleTeacherRegistration(
+          {
+            name,
+            email,
+            phoneNumber,
+            course,
+            experienceInCourse,
+            myCoachingId,
+            address,
+          },
+          res
+        );
+        break;
+      default:
+        return res.status(400).json({ error: "Invalid userType" });
     }
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error during registration:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+async function handleInstituteRegistration(
+  { name, email, phoneNumber, address },
+  res
+) {
+  const username = generateUsername(name);
+
+  if (await isUserExists("institutes", { username, email, phoneNumber })) {
+    return res
+      .status(400)
+      .json({ error: "Username, email, or phone number already registered" });
+  }
+
+  const password = generatePassword(username, phoneNumber);
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const instituteId = uuidv4();
+
+  const insertQuery = `
+    INSERT INTO institutes (username, email, phone_no, password, institute_name, institute_id, institute_status, address, entered_date)
+    VALUES ($1, $2, $3, $4, $5, $6, 'Active', $7, NOW())
+  `;
+  await db.query(insertQuery, [
+    username,
+    email,
+    phoneNumber,
+    hashedPassword,
+    name,
+    instituteId,
+    address,
+  ]);
+
+  await sendPasswordByEmail(email, username, password);
+  res.status(201).json({ message: "Institute created successfully" });
+}
+
+async function handleStudentRegistration(
+  { name, email, phoneNumber, std, medium, course, myCoachingId, address, fee },
+  res
+) {
+  if (!std || !medium || !course || !myCoachingId) {
+    return res.status(400).json({ error: "Missing required student data" });
+  }
+
+  if (!(await isRecordExists("institutes", "institute_id", myCoachingId))) {
+    return res.status(400).json({ error: "Coaching ID not found" });
+  }
+
+  if (await isUserExists("users", { email, institute_id_c: myCoachingId })) {
+    return res.status(400).json({ error: "Email already registered" });
+  }
+
+  await db.query("BEGIN");
+  try {
+    const userId = uuidv4();
+    const studentId = uuidv4();
+    const feeId = uuidv4();
+    const username = generateUsername(name);
+    const password = generatePassword(username, phoneNumber);
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await createUser({
+      userId,
+      username,
+      email,
+      userType: "student",
+      instituteId: myCoachingId,
+      phoneNumber,
+      hashedPassword,
+    });
+    await createStudent({
+      studentId,
+      userId,
+      name,
+      std,
+      medium,
+      myCoachingId,
+      address,
+    });
+    await createFee({
+      feeId,
+      amount: fee,
+      myCoachingId,
+      userId,
+      duration: "6 months",
+    });
+    await createCourses(course, myCoachingId, userId);
+
+    await db.query("COMMIT");
+    await sendPasswordByEmail(email, username, password);
+    res.status(201).json({ message: "Student created successfully" });
+  } catch (error) {
+    await db.query("ROLLBACK");
+    console.error("Error during student registration:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
+async function handleTeacherRegistration(
+  {
+    name,
+    email,
+    phoneNumber,
+    course,
+    experienceInCourse,
+    myCoachingId,
+    address,
+  },
+  res
+) {
+  if (!course || !experienceInCourse || !myCoachingId) {
+    return res.status(400).json({ error: "Missing required teacher data" });
+  }
+
+  if (!(await isRecordExists("institutes", "institute_id", myCoachingId))) {
+    return res.status(400).json({ error: "Coaching ID not found" });
+  }
+
+  if (await isUserExists("users", { email, institute_id_c: myCoachingId })) {
+    return res.status(400).json({ error: "Email already registered" });
+  }
+
+  await db.query("BEGIN");
+  try {
+    const userId = uuidv4();
+    const teacherId = uuidv4();
+    const username = generateUsername(name);
+    const password = generatePassword(username, phoneNumber);
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await createUser({
+      userId,
+      username,
+      email,
+      userType: "teacher",
+      myCoachingId,
+      phoneNumber,
+      hashedPassword,
+    });
+    await createTeacher({ teacherId, userId, name, myCoachingId, address });
+    await createCourses(course, myCoachingId, userId, experienceInCourse);
+    await db.query("COMMIT");
+    await sendPasswordByEmail(email, username, password);
+    res.status(201).json({ message: "Teacher created successfully" });
+  } catch (error) {
+    await db.query("ROLLBACK");
+    console.error("Error during teacher registration:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
+async function isUserExists(table, criteria) {
+  const whereClause = Object.keys(criteria)
+    .map((key, index) => `${key} = $${index + 1}`)
+    .join(" AND ");
+  const values = Object.values(criteria);
+  const query = `SELECT 1 FROM ${table} WHERE ${whereClause}`;
+  const result = await db.query(query, values);
+  return result.rows.length > 0;
+}
+
+async function isRecordExists(table, column, value) {
+  const query = `SELECT 1 FROM ${table} WHERE ${column} = $1`;
+  const result = await db.query(query, [value]);
+  return result.rows.length > 0;
+}
+
+async function createUser({
+  userId,
+  username,
+  email,
+  userType,
+  instituteId,
+  phoneNumber,
+  hashedPassword,
+}) {
+  const query = `
+    INSERT INTO users (user_id, username, email, role_type, institute_id_c, phone_no, password, user_status, entered_date)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, 'Active', NOW())
+  `;
+  await db.query(query, [
+    userId,
+    username,
+    email,
+    userType,
+    instituteId,
+    phoneNumber,
+    hashedPassword,
+  ]);
+}
+
+async function createStudent({
+  studentId,
+  userId,
+  name,
+  std,
+  medium,
+  myCoachingId,
+  address,
+}) {
+  const query = `
+    INSERT INTO students (student_id, users_id_c, name, std, medium, institute_id_c, address)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+  `;
+  await db.query(query, [
+    studentId,
+    userId,
+    name,
+    std,
+    medium,
+    myCoachingId,
+    address,
+  ]);
+}
+
+async function createFee({ feeId, amount, myCoachingId, userId, duration }) {
+  const query = `
+    INSERT INTO fees (fee_id, amount, description, institute_id_c, user_id_c, duration, entered_date)
+    VALUES ($1, $2, 'Paid', $3, $4, $5, NOW())
+  `;
+  await db.query(query, [feeId, amount, myCoachingId, userId, duration]);
+}
+
+async function createCourses(
+  course,
+  instituteId,
+  userId,
+  experienceInCourse = 0
+) {
+  for (let courseId of course) {
+    const studentCourseId = uuidv4();
+    const query = `
+      INSERT INTO courses (institute_id_c, user_id_c, course_status, course_id, entered_date, master_course_id_c, experiance)
+      VALUES ($1, $2, 'Active', $3, NOW(), $4, $5)
+    `;
+    await db.query(query, [
+      instituteId,
+      userId,
+      studentCourseId,
+      courseId,
+      experienceInCourse,
+    ]);
+  }
+}
+
+async function createTeacher({
+  teacherId,
+  userId,
+  name,
+  myCoachingId,
+  address,
+}) {
+  const query = `
+    INSERT INTO teachers (teacher_id, users_id_c, name, institute_id_c, address)
+    VALUES ($1, $2, $3, $4, $5)
+  `;
+  await db.query(query, [teacherId, userId, name, myCoachingId, address]);
+}
 
 exports.usefulData = async (req, res) => {
   try {
@@ -261,10 +354,12 @@ exports.usefulData = async (req, res) => {
 
 exports.getUsersByCoachingId = async (req, res) => {
   const { coachingId, userCategory } = req.body;
+  const limit = parseInt(req.query.limit) || 20;
+  const page = parseInt(req.query.page) || 1;
+  const offset = (page - 1) * limit;
   let message = "Success";
 
   try {
-    // Validate coachingId existence in users table
     const userQuery = "SELECT * FROM users WHERE institute_id_c = $1";
     const userResult = await db.query(userQuery, [coachingId]);
 
@@ -272,7 +367,6 @@ exports.getUsersByCoachingId = async (req, res) => {
       return res.status(404).json({ error: "Coaching ID not found" });
     }
 
-    // Validate institute status is Active
     const instituteQuery = "SELECT * FROM institutes WHERE institute_id = $1";
     const instituteResult = await db.query(instituteQuery, [coachingId]);
 
@@ -285,7 +379,6 @@ exports.getUsersByCoachingId = async (req, res) => {
         .json({ error: "Institute ID not found or inactive" });
     }
 
-    // Define the base query
     let roleTypeQuery = `
         SELECT 
           u.username, 
@@ -314,7 +407,8 @@ exports.getUsersByCoachingId = async (req, res) => {
           u.role_type = $1
           AND u.institute_id_c = $2
           AND c.institute_id_c = $2 
-          AND c.user_id_c = u.user_id;
+          AND c.user_id_c = u.user_id
+        LIMIT $3 OFFSET $4;
       `;
 
     if (userCategory === "teacher") {
@@ -344,16 +438,18 @@ exports.getUsersByCoachingId = async (req, res) => {
             u.role_type = $1
             AND u.institute_id_c = $2
             AND c.institute_id_c = $2 
-            AND c.user_id_c = u.user_id;
+            AND c.user_id_c = u.user_id
+          LIMIT $3 OFFSET $4;
         `;
     } else if (userCategory !== "student") {
       return res.status(400).json({ error: "Invalid user category" });
     }
 
-    // Execute the query
     const roleTypeResult = await db.query(roleTypeQuery, [
       userCategory,
       coachingId,
+      limit,
+      offset,
     ]);
 
     if (roleTypeResult.rows.length === 0) {
@@ -362,7 +458,6 @@ exports.getUsersByCoachingId = async (req, res) => {
         .json({ error: "No users found for the given category and institute" });
     }
 
-    // Process the results to group courses by user
     const userMap = {};
 
     roleTypeResult.rows.forEach((row) => {
@@ -392,7 +487,7 @@ exports.getUsersByCoachingId = async (req, res) => {
 
     const users = Object.values(userMap);
 
-    return res.status(200).json({ message, users });
+    return res.status(200).json({ message, users, page, limit });
   } catch (error) {
     console.error("Error processing request:", error);
     return res.status(500).json({ error: "Internal Server Error" });
