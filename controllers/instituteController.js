@@ -242,7 +242,7 @@ async function createUser({
   username,
   email,
   userType,
-  instituteId,
+  myCoachingId,
   phoneNumber,
   hashedPassword,
 }) {
@@ -255,7 +255,7 @@ async function createUser({
     username,
     email,
     userType,
-    instituteId,
+    myCoachingId,
     phoneNumber,
     hashedPassword,
   ]);
