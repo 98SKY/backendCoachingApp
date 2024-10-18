@@ -136,7 +136,7 @@ async function handleStudentRegistration(
       username,
       email,
       userType: "student",
-      instituteId: myCoachingId,
+       myCoachingId,
       phoneNumber,
       hashedPassword,
     });

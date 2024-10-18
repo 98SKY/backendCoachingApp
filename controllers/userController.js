@@ -237,3 +237,29 @@ exports.getUserData = async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+exports.updateDetails = async (req, res) => {
+  try {
+    const {instituteID, userID, userType, changesData} = req.body;
+    const instituteQuery =
+      "SELECT institute_id, institute_status FROM institutes WHERE institute_id = $1";
+    const instituteResult = await db.query(instituteQuery, [instituteID]);
+
+    if (instituteResult.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No institute found with the provided ID" });
+    }
+
+    const instituteStatus = instituteResult.rows[0].institute_status;
+
+    if (instituteStatus !== "Active") {
+      return res.status(400).json({
+        message: "Please contact the institute for further information",
+      });
+    }
+    
+  } catch (error) {
+    
+  }
+}
